@@ -13,12 +13,16 @@ def test_policy_rejects_missing_confidence():
     result = AskResult(success=True, answer="hi")
     evaluated = policy.evaluate(result)
     assert not evaluated.success
-    assert evaluated.message == "AI response missing confidence score"
+    assert evaluated.message == (
+        "AI response missing confidence score"
+    )
 
 
 def test_policy_rejects_low_confidence():
     policy = ReasoningPolicy()
-    result = AskResult(success=True, answer="hi", confidence=0.5, reasoning="r")
+    result = AskResult(
+        success=True, answer="hi", confidence=0.5, reasoning="r"
+    )
     evaluated = policy.evaluate(result)
     assert not evaluated.success
     assert "below acceptable" in evaluated.message

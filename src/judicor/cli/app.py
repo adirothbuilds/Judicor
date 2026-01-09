@@ -38,11 +38,14 @@ def get_client():
 # Commands
 # -----------------------------------------------------------------------------
 
+
 @app.command("init")
 def init():
     """Initialize Judicor identity for this machine."""
     from judicor.identity.init_flow import run_init
+
     run_init()
+
 
 @app.command("list")
 def list_incidents():
@@ -145,6 +148,7 @@ def trigger():
 # -----------------------------------------------------------------------------
 # Entrypoint
 # -----------------------------------------------------------------------------
+
 
 def main():
     app()

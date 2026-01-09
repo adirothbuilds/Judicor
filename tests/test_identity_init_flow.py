@@ -33,4 +33,6 @@ def test_run_init_saves_identity(monkeypatch):
     assert identity.org == "Acme"
     assert identity.hostname == "host"
     assert identity.os_user == "user"
-    assert identity.fingerprint == init_flow._generate_fingerprint("host", "user")
+    assert identity.fingerprint == init_flow._generate_fingerprint(
+        "host", "user"
+    )

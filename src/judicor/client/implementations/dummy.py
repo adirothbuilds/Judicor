@@ -91,7 +91,10 @@ class DummyJudicorClient(JudicorClient):
         return StatusResult(
             success=True,
             state=self.current_incident.status,
-            summary=f"{self.current_incident.title} is {self.current_incident.status}",
+            summary=(
+                f"{self.current_incident.title} is "
+                f"{self.current_incident.status}"
+            ),
         )
 
     def resolve_incident(self) -> Result:

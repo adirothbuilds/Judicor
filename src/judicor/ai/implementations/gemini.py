@@ -43,7 +43,7 @@ class GeminiAIReasoner(AIReasoner):
         return AskResult(
             True,
             answer=text,
-            # Gemini SDK does not provide a native probability score; default to 1.0
+            # Gemini SDK lacks native probability score; default to 1.0
             confidence=1.0,
             reasoning=None,
         )

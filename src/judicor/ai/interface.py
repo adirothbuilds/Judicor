@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from judicor.domain.results import AskResult
 from judicor.domain.models import Incident
 
+
 class AIReasoner(ABC):
     """
     Interface for AI Reasoner engines.

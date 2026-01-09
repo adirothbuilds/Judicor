@@ -35,7 +35,9 @@ def test_list_and_attach_incident(temp_session_store):
 
 
 def test_ask_and_policy_flow(temp_session_store):
-    client = DummyJudicorClient(reasoner=_StubReasoner(answer="answer", confidence=0.95))
+    client = DummyJudicorClient(
+        reasoner=_StubReasoner(answer="answer", confidence=0.95)
+    )
     client.attach_incident(1)
 
     result = client.ask_ai("q")

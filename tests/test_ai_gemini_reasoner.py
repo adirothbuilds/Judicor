@@ -10,7 +10,9 @@ class _Response:
 
 
 class _StubModels:
-    def __init__(self, response_text: str | None = None, error: Exception | None = None):
+    def __init__(
+        self, response_text: str | None = None, error: Exception | None = None
+    ):
         self.response_text = response_text
         self.error = error
 
@@ -21,14 +23,18 @@ class _StubModels:
 
 
 class _StubClient:
-    def __init__(self, response_text: str | None = None, error: Exception | None = None):
+    def __init__(
+        self, response_text: str | None = None, error: Exception | None = None
+    ):
         self.models = _StubModels(response_text=response_text, error=error)
 
 
 def test_gemini_reasoner_success(monkeypatch):
     monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
 
-    monkeypatch.setattr(gemini, "genai", SimpleNamespace(Client=lambda: _StubClient("answer")))
+    monkeypatch.setattr(
+        gemini, "genai", SimpleNamespace(Client=lambda: _StubClient("answer"))
+    )
 
     reasoner = gemini.GeminiAIReasoner()
     incident = Incident(id=1, title="title", status="active")
@@ -44,7 +50,11 @@ def test_gemini_reasoner_failure(monkeypatch):
     monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
 
     error = RuntimeError("fail")
-    monkeypatch.setattr(gemini, "genai", SimpleNamespace(Client=lambda: _StubClient(error=error)))
+    monkeypatch.setattr(
+        gemini,
+        "genai",
+        SimpleNamespace(Client=lambda: _StubClient(error=error)),
+    )
 
     reasoner = gemini.GeminiAIReasoner()
     incident = Incident(id=1, title="title", status="active")

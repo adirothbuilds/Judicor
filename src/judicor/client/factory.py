@@ -7,14 +7,15 @@ from judicor.client.implementations.dummy import DummyJudicorClient
 
 DEFAULT_CLIENT_TYPE = "dummy"
 
+
 def create_judicor_client() -> JudicorClient:
     """
     Factory function to create a JudicorClient instance
     based on the `JUDICOR_CLIENT_TYPE` environment variable.
-    
+
     Returns:
         JudicorClient: An instance of a JudicorClient implementation.
-    
+
     Raises:
         ValueError: If the specified client type is unknown.
     """

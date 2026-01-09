@@ -1,0 +1,22 @@
+# Multi-stage build for Judicor Control Plane
+
+FROM python:3.11-slim AS base
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+WORKDIR /app
+
+FROM base AS builder
+RUN pip install --no-cache-dir poetry
+COPY pyproject.toml poetry.lock ./
+RUN poetry config virtualenvs.create false \
+    && poetry install --only main --no-interaction --no-ansi
+COPY src ./src
+RUN poetry install --only main --no-interaction --no-ansi
+
+FROM base AS runtime
+COPY --from=builder /usr/local/lib/python3.11 /usr/local/lib/python3.11
+COPY --from=builder /usr/local/bin /usr/local/bin
+WORKDIR /app
+COPY src ./src
+EXPOSE 8000
+CMD ["uvicorn", "judicor.control_plane.app:app", "--host", "0.0.0.0", "--port", "8000"]

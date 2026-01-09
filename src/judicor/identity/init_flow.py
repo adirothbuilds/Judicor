@@ -36,7 +36,9 @@ def run_init() -> None:
             f"  Host: {existing.hostname}\n"
             f"  Created: {existing.created_at}"
         )
-        if not typer.confirm("Do you want to overwrite the existing identity?"):
+        if not typer.confirm(
+            "Do you want to overwrite the existing identity?"
+        ):
             typer.echo("Initialization aborted.")
             raise typer.Exit(code=1)
 
@@ -52,9 +54,10 @@ def run_init() -> None:
 
     name = typer.prompt("Full name").strip()
     email = typer.prompt("Email").strip()
-    org: Optional[str] = typer.prompt(
+    org_prompt = typer.prompt(
         "Organization (optional)", default="", show_default=False
-    ).strip() or None
+    ).strip()
+    org: Optional[str] = org_prompt or None
 
     # ------------------------------------------------------------------
     # System-derived values
