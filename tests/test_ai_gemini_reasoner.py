@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from judicor.ai.implementations import gemini
-from judicor.domain.models import Incident
+from judicor.domain.models import Incident, IncidentState
 
 
 class _Response:
@@ -37,7 +37,7 @@ def test_gemini_reasoner_success(monkeypatch):
     )
 
     reasoner = gemini.GeminiAIReasoner()
-    incident = Incident(id=1, title="title", status="active")
+    incident = Incident(id=1, title="title", state=IncidentState.ACTIVE)
 
     result = reasoner.ask(incident, "question")
 
@@ -57,7 +57,7 @@ def test_gemini_reasoner_failure(monkeypatch):
     )
 
     reasoner = gemini.GeminiAIReasoner()
-    incident = Incident(id=1, title="title", status="active")
+    incident = Incident(id=1, title="title", state=IncidentState.ACTIVE)
 
     result = reasoner.ask(incident, "question")
 

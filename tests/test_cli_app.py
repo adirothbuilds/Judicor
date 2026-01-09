@@ -1,7 +1,7 @@
 from typer.testing import CliRunner
 
 from judicor.cli import app
-from judicor.domain.models import Incident
+from judicor.domain.models import Incident, IncidentState
 
 
 class _StubClient:
@@ -10,7 +10,7 @@ class _StubClient:
 
     def list_incidents(self):
         self.calls.append("list")
-        return [Incident(id=1, title="Title", status="active")]
+        return [Incident(id=1, title="Title", state=IncidentState.ACTIVE)]
 
     def attach_incident(self, incident_id: int):
         self.calls.append(f"attach:{incident_id}")

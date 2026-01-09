@@ -4,12 +4,14 @@ from judicor.ai.interface import AIReasoner
 from judicor.ai.factory import create_ai_reasoner
 from judicor.ai.policy import ReasoningPolicy
 from judicor.client.interface import JudicorClient
+from judicor.session import timeline_store
 from judicor.session.store import (
     load_attached_incident,
     save_attached_incident,
     clear_session,
 )
-from judicor.domain.models import Incident
+from judicor.domain.models import Incident, IncidentState
+from judicor.domain.state import transition_incident_state
 from judicor.domain.messages import NO_INCIDENT_ATTACHED
 from judicor.domain.results import (
     Result,
@@ -36,9 +38,23 @@ class DummyJudicorClient(JudicorClient):
 
         # In-memory incidents store (dummy backend)
         self.incidents: Dict[int, Incident] = {
-            1: Incident(id=1, title="Dummy Incident 1", status="active"),
-            2: Incident(id=2, title="Dummy Incident 2", status="resolved"),
+            1: Incident(
+                id=1, title="Dummy Incident 1", state=IncidentState.ACTIVE
+            ),
+            2: Incident(
+                id=2, title="Dummy Incident 2", state=IncidentState.RESOLVED
+            ),
         }
+        for incident in self.incidents.values():
+            timeline_store.append_event(
+                incident.id,
+                "created",
+                (
+                    "Incident "
+                    f"{incident.id} initialized in state "
+                    f"{incident.state.value}"
+                ),
+            )
 
         # Restore session if exists
         self.current_incident: Optional[Incident] = None
@@ -58,6 +74,9 @@ class DummyJudicorClient(JudicorClient):
 
         self.current_incident = incident
         save_attached_incident(incident_id)
+        timeline_store.append_event(
+            incident_id, "attached", f"Attached to incident {incident_id}"
+        )
 
         return AttachResult(success=True, incident_id=incident_id)
 
@@ -66,8 +85,15 @@ class DummyJudicorClient(JudicorClient):
         if self.current_incident is None:
             return Result(success=False, message=NO_INCIDENT_ATTACHED)
 
+        incident_id = self.current_incident.id
         self.current_incident = None
         clear_session()
+
+        timeline_store.append_event(
+            incident_id,
+            "detached",
+            f"Detached from incident {incident_id}",
+        )
 
         return Result(success=True, message="Detached successfully")
 
@@ -76,7 +102,25 @@ class DummyJudicorClient(JudicorClient):
         if self.current_incident is None:
             return AskResult(success=False, message=NO_INCIDENT_ATTACHED)
 
+        if self.current_incident.state == IncidentState.ACTIVE:
+            try:
+                transition_incident_state(
+                    self.current_incident, IncidentState.INVESTIGATING
+                )
+                timeline_store.append_event(
+                    self.current_incident.id,
+                    "state_change",
+                    "Incident moved to investigating",
+                )
+            except ValueError:
+                pass
+
         raw_result = self.reasoner.ask(self.current_incident, question)
+        timeline_store.append_event(
+            self.current_incident.id,
+            "ask",
+            f"Asked AI: {question}",
+        )
         return self.policy.evaluate(raw_result)
 
     def status_incident(self) -> StatusResult:
@@ -102,8 +146,18 @@ class DummyJudicorClient(JudicorClient):
         if self.current_incident is None:
             return Result(success=False, message=NO_INCIDENT_ATTACHED)
 
-        self.current_incident.status = "resolved"
         incident_id = self.current_incident.id
+        try:
+            transition_incident_state(
+                self.current_incident, IncidentState.RESOLVED
+            )
+            timeline_store.append_event(
+                incident_id,
+                "state_change",
+                "Incident resolved",
+            )
+        except ValueError as exc:
+            return Result(success=False, message=str(exc))
 
         self.current_incident = None
         clear_session()
@@ -120,7 +174,25 @@ class DummyJudicorClient(JudicorClient):
         self.incidents[new_incident_id] = Incident(
             id=new_incident_id,
             title=f"Dummy Incident {new_incident_id}",
-            status="active",
+            state=IncidentState.CREATED,
         )
+
+        timeline_store.append_event(
+            new_incident_id,
+            "created",
+            f"Incident {new_incident_id} initialized in state created",
+        )
+
+        try:
+            transition_incident_state(
+                self.incidents[new_incident_id], IncidentState.ACTIVE
+            )
+            timeline_store.append_event(
+                new_incident_id,
+                "state_change",
+                "Incident moved to active",
+            )
+        except ValueError:
+            pass
 
         return TriggerResult(success=True, incident_id=new_incident_id)
