@@ -1,8 +1,14 @@
-# src/judicor/client/implementations/dummy.py
-
 from typing import Dict, Optional, List
 
+from judicor.ai.interface import AIReasoner
+from judicor.ai.factory import create_ai_reasoner
+from judicor.ai.policy import ReasoningPolicy
 from judicor.client.interface import JudicorClient
+from judicor.session.store import (
+    load_attached_incident,
+    save_attached_incident,
+    clear_session,
+)
 from judicor.domain.models import Incident
 from judicor.domain.messages import NO_INCIDENT_ATTACHED
 from judicor.domain.results import (
@@ -20,12 +26,25 @@ class DummyJudicorClient(JudicorClient):
     Used for local testing and development.
     """
 
-    def __init__(self) -> None:
-        self.current_incident: Optional[Incident] = None
+    def __init__(
+        self,
+        reasoner: Optional[AIReasoner] = None,
+        policy: Optional[ReasoningPolicy] = None,
+    ) -> None:
+        self.reasoner = reasoner or create_ai_reasoner()
+        self.policy = policy or ReasoningPolicy()
+
+        # In-memory incidents store (dummy backend)
         self.incidents: Dict[int, Incident] = {
             1: Incident(id=1, title="Dummy Incident 1", status="active"),
             2: Incident(id=2, title="Dummy Incident 2", status="resolved"),
         }
+
+        # Restore session if exists
+        self.current_incident: Optional[Incident] = None
+        attached_id = load_attached_incident()
+        if attached_id is not None:
+            self.current_incident = self.incidents.get(attached_id)
 
     def list_incidents(self) -> List[Incident]:
         """List all incidents."""
@@ -38,6 +57,8 @@ class DummyJudicorClient(JudicorClient):
             return AttachResult(success=False, message="Incident not found")
 
         self.current_incident = incident
+        save_attached_incident(incident_id)
+
         return AttachResult(success=True, incident_id=incident_id)
 
     def detach_incident(self) -> Result:
@@ -46,6 +67,8 @@ class DummyJudicorClient(JudicorClient):
             return Result(success=False, message=NO_INCIDENT_ATTACHED)
 
         self.current_incident = None
+        clear_session()
+
         return Result(success=True, message="Detached successfully")
 
     def ask_ai(self, question: str) -> AskResult:
@@ -53,12 +76,8 @@ class DummyJudicorClient(JudicorClient):
         if self.current_incident is None:
             return AskResult(success=False, message=NO_INCIDENT_ATTACHED)
 
-        return AskResult(
-            success=True,
-            answer="This is a dummy answer.",
-            confidence=0.9,
-            reasoning="Dummy reasoning trace.",
-        )
+        raw_result = self.reasoner.ask(self.current_incident, question)
+        return self.policy.evaluate(raw_result)
 
     def status_incident(self) -> StatusResult:
         """Check the status of the current incident session."""
@@ -82,7 +101,9 @@ class DummyJudicorClient(JudicorClient):
 
         self.current_incident.status = "resolved"
         incident_id = self.current_incident.id
+
         self.current_incident = None
+        clear_session()
 
         return Result(
             success=True,

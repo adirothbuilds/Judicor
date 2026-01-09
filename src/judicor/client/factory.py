@@ -1,24 +1,26 @@
 # src/judicor/client/factory.py
 
+import os
+
 from judicor.client.interface import JudicorClient
 from judicor.client.implementations.dummy import DummyJudicorClient
 
+DEFAULT_CLIENT_TYPE = "dummy"
 
-def create_judicor_client(type: str) -> JudicorClient:
+def create_judicor_client() -> JudicorClient:
     """
-    Factory function to create a JudicorClient instance,
-    based on the specified type.
-
-    Args:
-        type (str): The type of client to create. Currently supports 'dummy'.
-
+    Factory function to create a JudicorClient instance
+    based on the `JUDICOR_CLIENT_TYPE` environment variable.
+    
     Returns:
         JudicorClient: An instance of a JudicorClient implementation.
-
+    
     Raises:
-        ValueError: If an unsupported client type is specified.
+        ValueError: If the specified client type is unknown.
     """
-    if type == "dummy":
+    client_type = os.getenv("JUDICOR_CLIENT_TYPE", DEFAULT_CLIENT_TYPE).lower()
+
+    if client_type == "dummy":
         return DummyJudicorClient()
     else:
-        raise ValueError(f"Unsupported client type: {type}")
+        raise ValueError(f"Unknown Judicor client type: {client_type}")

@@ -25,15 +25,24 @@ _client_instance = None
 def get_client():
     global _client_instance
     if _client_instance is None:
-        # For now we default to the dummy client.
-        # This can later be driven by config/env flags.
-        _client_instance = create_judicor_client("dummy")
+        try:
+            # using factory to create client based on env JUDICOR_CLIENT_TYPE
+            _client_instance = create_judicor_client()
+        except ValueError as exc:
+            typer.echo(str(exc))
+            raise typer.Exit(code=1)
     return _client_instance
 
 
 # -----------------------------------------------------------------------------
 # Commands
 # -----------------------------------------------------------------------------
+
+@app.command("init")
+def init():
+    """Initialize Judicor identity for this machine."""
+    from judicor.identity.init_flow import run_init
+    run_init()
 
 @app.command("list")
 def list_incidents():
@@ -131,19 +140,6 @@ def trigger():
         typer.echo(f"New incident created: {result.incident_id}")
     else:
         typer.echo(f"Failed to create incident: {result.message}")
-
-
-@app.command("config")
-def config(
-    global_: bool = typer.Option(
-        False, "--global", "-g", help="Configure global settings"
-    )
-):
-    """Configure identity and API settings."""
-    scope = "global" if global_ else "local"
-    typer.echo(f"Configuring {scope} settings...")
-    # Configuration logic will be implemented later
-    typer.echo("Configuration complete.")
 
 
 # -----------------------------------------------------------------------------

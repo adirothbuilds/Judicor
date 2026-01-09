@@ -13,6 +13,23 @@ venv.bak/
 .poetry/
 __pypackages__/
 
+# Pytest
+.cache/
+.pytest_cache/
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+.nox/
+.coverage-*.xml
+coverage.xml
+
+# Mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
 # OS generated files
 .DS_Store
 Thumbs.db
