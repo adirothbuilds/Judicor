@@ -1,12 +1,15 @@
-from typing import Dict, Optional, List
+from typing import Optional, List
 
 from judicor.ai.interface import AIReasoner
 from judicor.ai.factory import create_ai_reasoner
 from judicor.ai.policy import ReasoningPolicy
+from judicor.ai.roles import AgentRole
 from judicor.client.interface import JudicorClient
 from judicor.session import timeline_store
+from judicor.session import incident_store
+from judicor.session import history_store
 from judicor.session.store import (
-    load_attached_incident,
+    load_session,
     save_attached_incident,
     clear_session,
 )
@@ -33,50 +36,47 @@ class DummyJudicorClient(JudicorClient):
         reasoner: Optional[AIReasoner] = None,
         policy: Optional[ReasoningPolicy] = None,
     ) -> None:
-        self.reasoner = reasoner or create_ai_reasoner()
+        self.reasoners = self._init_reasoners(reasoner)
         self.policy = policy or ReasoningPolicy()
 
         # In-memory incidents store (dummy backend)
-        self.incidents: Dict[int, Incident] = {
-            1: Incident(
-                id=1, title="Dummy Incident 1", state=IncidentState.ACTIVE
-            ),
-            2: Incident(
-                id=2, title="Dummy Incident 2", state=IncidentState.RESOLVED
-            ),
-        }
-        for incident in self.incidents.values():
-            timeline_store.append_event(
-                incident.id,
-                "created",
-                (
-                    "Incident "
-                    f"{incident.id} initialized in state "
-                    f"{incident.state.value}"
-                ),
-            )
+        stored = incident_store.list_incidents()
+        if stored:
+            self.incidents = {inc.id: inc for inc in stored}
+        else:
+            self.incidents = {}
+            self._seed_incidents()
 
         # Restore session if exists
         self.current_incident: Optional[Incident] = None
-        attached_id = load_attached_incident()
-        if attached_id is not None:
+        session_info = load_session()
+        if session_info is not None:
+            attached_id, _ = session_info
             self.current_incident = self.incidents.get(attached_id)
 
     def list_incidents(self) -> List[Incident]:
         """List all incidents."""
-        return list(self.incidents.values())
+        incidents = incident_store.list_incidents()
+        self.incidents = {inc.id: inc for inc in incidents}
+        return incidents
 
     def attach_incident(self, incident_id: int) -> AttachResult:
         """Attach to an active incident session by ID."""
-        incident = self.incidents.get(incident_id)
+        incident = incident_store.load_incident(incident_id)
         if not incident:
             return AttachResult(success=False, message="Incident not found")
 
         self.current_incident = incident
+        self.incidents[incident_id] = incident
         save_attached_incident(incident_id)
         timeline_store.append_event(
             incident_id, "attached", f"Attached to incident {incident_id}"
         )
+
+        if history_store.load_summary(incident_id) is None:
+            history_store.set_summary(
+                incident_id, f"Initial context for incident {incident_id}"
+            )
 
         return AttachResult(success=True, incident_id=incident_id)
 
@@ -107,6 +107,7 @@ class DummyJudicorClient(JudicorClient):
                 transition_incident_state(
                     self.current_incident, IncidentState.INVESTIGATING
                 )
+                self._persist_incident(self.current_incident)
                 timeline_store.append_event(
                     self.current_incident.id,
                     "state_change",
@@ -115,13 +116,43 @@ class DummyJudicorClient(JudicorClient):
             except ValueError:
                 pass
 
-        raw_result = self.reasoner.ask(self.current_incident, question)
+        investigator = self.reasoners[AgentRole.INVESTIGATOR]
+        raw_result = investigator.ask(self.current_incident, question)
         timeline_store.append_event(
             self.current_incident.id,
             "ask",
             f"Asked AI: {question}",
         )
-        return self.policy.evaluate(raw_result)
+
+        evaluated = self.policy.evaluate(raw_result)
+        history_store.append_entry(
+            self.current_incident.id,
+            AgentRole.INVESTIGATOR,
+            evaluated.answer or evaluated.message or "",
+        )
+
+        # Run summarizer to keep rolling summary small for future asks
+        summarizer = self.reasoners[AgentRole.SUMMARIZER]
+        context = history_store.load_summary(self.current_incident.id) or ""
+        summary_prompt = (
+            f"Update summary with latest answer: {evaluated.answer}\n"
+            f"Previous summary: {context}"
+        )
+        summary_result = summarizer.ask(
+            self.current_incident,
+            summary_prompt,
+        )
+        if summary_result.success and summary_result.answer:
+            history_store.set_summary(
+                self.current_incident.id, summary_result.answer
+            )
+            timeline_store.append_event(
+                self.current_incident.id,
+                "summary",
+                "Incident summary updated",
+            )
+
+        return evaluated
 
     def status_incident(self) -> StatusResult:
         """Check the status of the current incident session."""
@@ -151,6 +182,25 @@ class DummyJudicorClient(JudicorClient):
             transition_incident_state(
                 self.current_incident, IncidentState.RESOLVED
             )
+            self._persist_incident(self.current_incident)
+            resolver = self.reasoners[AgentRole.RESOLVER]
+            context = history_store.load_summary(incident_id) or ""
+            resolution_result = resolver.ask(
+                self.current_incident,
+                (
+                    "Provide closure and root cause. "
+                    f"Summary: {context}"
+                ),
+            )
+            if resolution_result.success and resolution_result.answer:
+                history_store.append_entry(
+                    incident_id,
+                    AgentRole.RESOLVER,
+                    resolution_result.answer,
+                )
+                history_store.set_summary(
+                    incident_id, resolution_result.answer
+                )
             timeline_store.append_event(
                 incident_id,
                 "state_change",
@@ -169,30 +219,89 @@ class DummyJudicorClient(JudicorClient):
 
     def trigger(self) -> TriggerResult:
         """Trigger creation of a new incident session."""
-        new_incident_id = max(self.incidents.keys(), default=0) + 1
-
-        self.incidents[new_incident_id] = Incident(
-            id=new_incident_id,
-            title=f"Dummy Incident {new_incident_id}",
-            state=IncidentState.CREATED,
+        incident = incident_store.create_incident(
+            title=f"Dummy Incident {len(self.incidents) + 1}",
+            initial_state=IncidentState.CREATED,
         )
 
+        self._persist_incident(incident)
+
         timeline_store.append_event(
-            new_incident_id,
+            incident.id,
             "created",
-            f"Incident {new_incident_id} initialized in state created",
+            f"Incident {incident.id} initialized in state created",
         )
 
         try:
-            transition_incident_state(
-                self.incidents[new_incident_id], IncidentState.ACTIVE
-            )
+            transition_incident_state(incident, IncidentState.ACTIVE)
+            self._persist_incident(incident)
             timeline_store.append_event(
-                new_incident_id,
+                incident.id,
                 "state_change",
                 "Incident moved to active",
             )
+            analyzer = self.reasoners[AgentRole.ANALYZER]
+            analysis = analyzer.ask(
+                incident,
+                f"Analyze newly created incident {incident.title}",
+            )
+            if analysis.success and analysis.answer:
+                history_store.append_entry(
+                    incident.id, AgentRole.ANALYZER, analysis.answer
+                )
+                history_store.set_summary(
+                    incident.id, analysis.answer
+                )
+                timeline_store.append_event(
+                    incident.id,
+                    "analysis",
+                    "Initial analysis generated",
+                )
         except ValueError:
             pass
 
-        return TriggerResult(success=True, incident_id=new_incident_id)
+        return TriggerResult(success=True, incident_id=incident.id)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _persist_incident(self, incident: Incident) -> None:
+        self.incidents[incident.id] = incident
+        incident_store.save_incident(incident)
+
+    def _init_reasoners(
+        self, provided: Optional[AIReasoner]
+    ) -> dict[AgentRole, AIReasoner]:
+        mapping: dict[AgentRole, AIReasoner] = {}
+        for role in AgentRole:
+            if provided is not None:
+                mapping[role] = provided
+            else:
+                mapping[role] = create_ai_reasoner(role)
+        return mapping
+
+    def _seed_incidents(self) -> None:
+        seeds = [
+            (
+                "Dummy Incident 1",
+                IncidentState.ACTIVE,
+            ),
+            (
+                "Dummy Incident 2",
+                IncidentState.RESOLVED,
+            ),
+        ]
+
+        for title, state in seeds:
+            incident = incident_store.create_incident(title, state)
+            self.incidents[incident.id] = incident
+            timeline_store.append_event(
+                incident.id,
+                "created",
+                (
+                    "Incident "
+                    f"{incident.id} initialized in state "
+                    f"{incident.state.value}"
+                ),
+            )

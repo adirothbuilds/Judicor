@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 from judicor.ai.implementations import gemini
+from judicor.ai.roles import AgentRole
 from judicor.domain.models import Incident, IncidentState
 
 
@@ -36,7 +37,7 @@ def test_gemini_reasoner_success(monkeypatch):
         gemini, "genai", SimpleNamespace(Client=lambda: _StubClient("answer"))
     )
 
-    reasoner = gemini.GeminiAIReasoner()
+    reasoner = gemini.GeminiAIReasoner(role=AgentRole.INVESTIGATOR)
     incident = Incident(id=1, title="title", state=IncidentState.ACTIVE)
 
     result = reasoner.ask(incident, "question")
@@ -56,7 +57,7 @@ def test_gemini_reasoner_failure(monkeypatch):
         SimpleNamespace(Client=lambda: _StubClient(error=error)),
     )
 
-    reasoner = gemini.GeminiAIReasoner()
+    reasoner = gemini.GeminiAIReasoner(role=AgentRole.INVESTIGATOR)
     incident = Incident(id=1, title="title", state=IncidentState.ACTIVE)
 
     result = reasoner.ask(incident, "question")

@@ -4,6 +4,11 @@ from judicor.session import store
 def test_save_and_load_attached_incident(temp_session_store):
     store.save_attached_incident(5)
     assert store.load_attached_incident() == 5
+    session = store.load_session()
+    assert session is not None
+    attached, updated_at = session
+    assert attached == 5
+    assert updated_at is not None
 
 
 def test_clear_session(temp_session_store):

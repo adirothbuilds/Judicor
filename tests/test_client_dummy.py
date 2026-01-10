@@ -20,7 +20,9 @@ class _StubReasoner:
         )
 
 
-def test_list_and_attach_incident(temp_session_store, temp_timeline_store):
+def test_list_and_attach_incident(
+    temp_session_store, temp_timeline_store, temp_incident_store
+):
     client = DummyJudicorClient(reasoner=_StubReasoner())
 
     incidents = client.list_incidents()
@@ -34,7 +36,12 @@ def test_list_and_attach_incident(temp_session_store, temp_timeline_store):
     assert not missing.success
 
 
-def test_ask_and_policy_flow(temp_session_store, temp_timeline_store):
+def test_ask_and_policy_flow(
+    temp_session_store,
+    temp_timeline_store,
+    temp_incident_store,
+    temp_history_store,
+):
     client = DummyJudicorClient(
         reasoner=_StubReasoner(answer="answer", confidence=0.95)
     )
@@ -45,14 +52,18 @@ def test_ask_and_policy_flow(temp_session_store, temp_timeline_store):
     assert result.answer == "answer-1"
 
 
-def test_ask_without_attachment(temp_session_store, temp_timeline_store):
+def test_ask_without_attachment(
+    temp_session_store, temp_timeline_store, temp_incident_store
+):
     client = DummyJudicorClient(reasoner=_StubReasoner())
     result = client.ask_ai("q")
     assert not result.success
     assert result.message == NO_INCIDENT_ATTACHED
 
 
-def test_status_and_detach(temp_session_store, temp_timeline_store):
+def test_status_and_detach(
+    temp_session_store, temp_timeline_store, temp_incident_store
+):
     client = DummyJudicorClient(reasoner=_StubReasoner())
     status = client.status_incident()
     assert not status.success
@@ -67,7 +78,9 @@ def test_status_and_detach(temp_session_store, temp_timeline_store):
     assert client.current_incident is None
 
 
-def test_resolve_and_trigger(temp_session_store, temp_timeline_store):
+def test_resolve_and_trigger(
+    temp_session_store, temp_timeline_store, temp_incident_store
+):
     client = DummyJudicorClient(reasoner=_StubReasoner())
     resolve = client.resolve_incident()
     assert not resolve.success

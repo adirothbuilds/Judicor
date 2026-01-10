@@ -4,6 +4,7 @@ import os
 from google import genai
 
 from judicor.ai.interface import AIReasoner
+from judicor.ai.roles import AgentRole
 from judicor.domain.models import Incident
 from judicor.domain.results import AskResult
 
@@ -18,7 +19,7 @@ class GeminiAIReasoner(AIReasoner):
     - Returning raw output (no validation / policy)
     """
 
-    def __init__(self, model: str = "gemini-3-flash-preview"):
+    def __init__(self, role: AgentRole, model: str = "gemini-3-flash-preview"):
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise RuntimeError("GOOGLE_API_KEY is not set")
@@ -26,6 +27,7 @@ class GeminiAIReasoner(AIReasoner):
         # Client picks API key from env
         self.client = genai.Client()
         self.model = model
+        self.role = role
 
     def ask(self, incident: Incident, question: str) -> AskResult:
         prompt = self._build_prompt(incident, question)
@@ -49,16 +51,38 @@ class GeminiAIReasoner(AIReasoner):
         )
 
     def _build_prompt(self, incident: Incident, question: str) -> str:
+        if self.role == AgentRole.ANALYZER:
+            instruction = "Analyze the incident and highlight likely causes."
+        elif self.role == AgentRole.INVESTIGATOR:
+            instruction = (
+                "Investigate using given context and return concise findings."
+            )
+        elif self.role == AgentRole.SUMMARIZER:
+            instruction = (
+                "Produce a concise rolling summary capturing key findings "
+                "and current state."
+            )
+        elif self.role == AgentRole.RESOLVER:
+            instruction = (
+                "Provide closure reasoning with root cause and "
+                "resolution steps."
+            )
+        else:
+            instruction = "Provide helpful reasoning."
+
         return f"""
 You are an AI assistant helping investigate a production incident.
+
+Role: {self.role.value}
+Instruction: {instruction}
 
 Incident:
 - ID: {incident.id}
 - Title: {incident.title}
-- Status: {incident.status}
+- State: {incident.status}
 
-Question:
+Context:
 {question}
 
-Answer clearly and concisely.
+Respond concisely and stay within your role.
 """

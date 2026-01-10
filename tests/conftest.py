@@ -3,6 +3,8 @@ import pytest
 import judicor.session.store as session_store
 import judicor.identity.store as identity_store
 import judicor.session.timeline_store as timeline_store
+import judicor.session.incident_store as incident_store
+import judicor.session.history_store as history_store
 
 
 @pytest.fixture
@@ -30,3 +32,17 @@ def temp_timeline_store(monkeypatch, tmp_path):
     base = tmp_path / ".judicor" / "incidents"
     monkeypatch.setattr(timeline_store, "BASE_DIR", base)
     return timeline_store
+
+
+@pytest.fixture
+def temp_incident_store(monkeypatch, tmp_path):
+    base = tmp_path / ".judicor" / "incidents"
+    monkeypatch.setattr(incident_store, "BASE_DIR", base)
+    return incident_store
+
+
+@pytest.fixture
+def temp_history_store(monkeypatch, tmp_path):
+    base = tmp_path / ".judicor" / "incidents"
+    monkeypatch.setattr(history_store, "BASE_DIR", base)
+    return history_store

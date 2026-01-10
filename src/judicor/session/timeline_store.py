@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
+from judicor.session.utils import ensure_dir, secure_write_json
+
 BASE_DIR = Path.home() / ".judicor" / "incidents"
 
 
@@ -34,9 +36,9 @@ def _timeline_path(incident_id: int) -> Path:
 
 
 def append_event(incident_id: int, event_type: str, message: str) -> None:
-    BASE_DIR.mkdir(parents=True, exist_ok=True)
+    ensure_dir(BASE_DIR)
     path = _timeline_path(incident_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_dir(path.parent)
 
     events = load_timeline(incident_id)
     event = TimelineEvent(
@@ -47,8 +49,7 @@ def append_event(incident_id: int, event_type: str, message: str) -> None:
     )
     events.append(event)
 
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump([e.to_json() for e in events], f, indent=2)
+    secure_write_json(path, [e.to_json() for e in events])
 
 
 def load_timeline(incident_id: int) -> List[TimelineEvent]:

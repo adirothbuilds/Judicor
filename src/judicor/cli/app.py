@@ -61,7 +61,7 @@ def list_incidents():
         typer.echo(
             f"ID: {incident.id}, "
             f"Title: {incident.title}, "
-            f"Status: {incident.status}"
+            f"State: {incident.status}"
         )
 
 
@@ -119,6 +119,20 @@ def status_incident():
         typer.echo(f"Summary: {result.summary}")
     else:
         typer.echo(f"Failed to fetch status: {result.message}")
+
+
+@app.command("context")
+def context():
+    """Show current session context."""
+    client = get_client()
+    status = client.status_incident()
+
+    if not status.success:
+        typer.echo("No incident attached.")
+        return
+
+    typer.echo(f"Attached incident state: {status.state}")
+    typer.echo(f"Summary: {status.summary}")
 
 
 @app.command("resolve")

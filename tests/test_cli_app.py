@@ -59,3 +59,14 @@ def test_list_command_uses_client(monkeypatch):
     assert result.exit_code == 0
     assert "ID: 1" in result.stdout
     assert client.calls == ["list"]
+
+
+def test_context_command(monkeypatch):
+    runner = CliRunner()
+    client = _StubClient()
+    monkeypatch.setattr(app, "get_client", lambda: client)
+
+    result = runner.invoke(app.app, ["context"])
+
+    assert result.exit_code == 0
+    assert "Attached incident state" in result.stdout

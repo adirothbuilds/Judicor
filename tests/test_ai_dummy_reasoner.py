@@ -9,6 +9,7 @@ def test_dummy_reasoner_returns_static_answer():
     result = reasoner.ask(incident, "question")
 
     assert result.success
-    assert "Dummy analysis" in result.answer
+    assert "Dummy" in result.answer
+    assert str(incident.id) in result.answer
     assert result.confidence == 0.9
     assert result.reasoning == "Static dummy reasoning"
