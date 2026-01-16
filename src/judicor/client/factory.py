@@ -4,6 +4,7 @@ import os
 
 from judicor.client.interface import JudicorClient
 from judicor.client.implementations.dummy import DummyJudicorClient
+from judicor.client.implementations.http import HttpJudicorClient
 
 DEFAULT_CLIENT_TYPE = "dummy"
 
@@ -23,5 +24,7 @@ def create_judicor_client() -> JudicorClient:
 
     if client_type == "dummy":
         return DummyJudicorClient()
+    if client_type == "http":
+        return HttpJudicorClient()
     else:
         raise ValueError(f"Unknown Judicor client type: {client_type}")

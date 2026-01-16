@@ -70,3 +70,117 @@ def test_context_command(monkeypatch):
 
     assert result.exit_code == 0
     assert "Attached incident state" in result.stdout
+
+
+class _FailingClient(_StubClient):
+    def attach_incident(self, incident_id: int):
+        from judicor.domain.results import AttachResult
+
+        return AttachResult(success=False, message="Incident not found")
+
+    def detach_incident(self):
+        from judicor.domain.results import Result
+
+        return Result(success=False, message="No incident attached")
+
+    def ask_ai(self, question: str):
+        from judicor.domain.results import AskResult
+
+        return AskResult(success=False, message="No incident attached")
+
+    def status_incident(self):
+        from judicor.domain.results import StatusResult
+
+        return StatusResult(
+            success=False,
+            state="none",
+            summary="No incident attached",
+            message="No incident attached",
+        )
+
+    def resolve_incident(self):
+        from judicor.domain.results import Result
+
+        return Result(success=False, message="No incident attached")
+
+    def trigger(self):
+        from judicor.domain.results import TriggerResult
+
+        return TriggerResult(success=False, message="backend down")
+
+
+def test_ask_command_exits_on_failure(monkeypatch):
+    runner = CliRunner()
+    client = _FailingClient()
+    monkeypatch.setattr(app, "get_client", lambda: client)
+
+    result = runner.invoke(app.app, ["ask", "why?"])
+
+    assert result.exit_code == 1
+    assert "No incident attached" in result.stdout
+
+
+def test_context_command_exits_on_missing_session(monkeypatch):
+    runner = CliRunner()
+    client = _FailingClient()
+    monkeypatch.setattr(app, "get_client", lambda: client)
+
+    result = runner.invoke(app.app, ["context"])
+
+    assert result.exit_code == 1
+    assert "No incident attached" in result.stdout
+
+
+def test_status_command_exits_on_missing_session(monkeypatch):
+    runner = CliRunner()
+    client = _FailingClient()
+    monkeypatch.setattr(app, "get_client", lambda: client)
+
+    result = runner.invoke(app.app, ["status"])
+
+    assert result.exit_code == 1
+    assert "No incident attached" in result.stdout
+
+
+def test_attach_command_exits_on_failure(monkeypatch):
+    runner = CliRunner()
+    client = _FailingClient()
+    monkeypatch.setattr(app, "get_client", lambda: client)
+
+    result = runner.invoke(app.app, ["attach", "99"])
+
+    assert result.exit_code == 1
+    assert "Incident not found" in result.stdout
+
+
+def test_detach_command_exits_on_failure(monkeypatch):
+    runner = CliRunner()
+    client = _FailingClient()
+    monkeypatch.setattr(app, "get_client", lambda: client)
+
+    result = runner.invoke(app.app, ["detach"])
+
+    assert result.exit_code == 1
+    assert "No incident attached" in result.stdout
+
+
+def test_resolve_command_exits_on_failure(monkeypatch):
+    runner = CliRunner()
+    client = _FailingClient()
+    monkeypatch.setattr(app, "get_client", lambda: client)
+
+    result = runner.invoke(app.app, ["resolve"])
+
+    assert result.exit_code == 1
+    assert "No incident attached" in result.stdout
+
+
+def test_trigger_command_exits_on_failure(monkeypatch):
+    runner = CliRunner()
+    client = _FailingClient()
+    monkeypatch.setattr(app, "get_client", lambda: client)
+
+    result = runner.invoke(app.app, ["trigger"])
+
+    assert result.exit_code == 1
+    assert "backend down" in result.stdout

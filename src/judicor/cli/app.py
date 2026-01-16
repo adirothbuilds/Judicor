@@ -75,6 +75,7 @@ def attach_incident(incident_id: int):
         typer.echo(f"Attached to incident {incident_id}.")
     else:
         typer.echo(f"Failed to attach: {result.message}")
+        raise typer.Exit(code=1)
 
 
 @app.command("detach")
@@ -87,6 +88,7 @@ def detach_incident():
         typer.echo("Detached from incident.")
     else:
         typer.echo(f"Failed to detach: {result.message}")
+        raise typer.Exit(code=1)
 
 
 @app.command("ask")
@@ -97,7 +99,7 @@ def ask_ai(question: str):
 
     if not result.success:
         typer.echo(f"AI could not answer: {result.message}")
-        return
+        raise typer.Exit(code=1)
 
     typer.echo(f"Answer: {result.answer}")
 
@@ -119,6 +121,7 @@ def status_incident():
         typer.echo(f"Summary: {result.summary}")
     else:
         typer.echo(f"Failed to fetch status: {result.message}")
+        raise typer.Exit(code=1)
 
 
 @app.command("context")
@@ -129,7 +132,7 @@ def context():
 
     if not status.success:
         typer.echo("No incident attached.")
-        return
+        raise typer.Exit(code=1)
 
     typer.echo(f"Attached incident state: {status.state}")
     typer.echo(f"Summary: {status.summary}")
@@ -145,6 +148,7 @@ def resolve_incident():
         typer.echo("Incident resolved successfully.")
     else:
         typer.echo(f"Failed to resolve incident: {result.message}")
+        raise typer.Exit(code=1)
 
 
 @app.command("trigger")
@@ -157,6 +161,7 @@ def trigger():
         typer.echo(f"New incident created: {result.incident_id}")
     else:
         typer.echo(f"Failed to create incident: {result.message}")
+        raise typer.Exit(code=1)
 
 
 # -----------------------------------------------------------------------------

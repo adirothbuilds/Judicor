@@ -18,3 +18,12 @@ def test_load_invalid_file_returns_empty(temp_timeline_store):
 
     events = timeline_store.load_timeline(1)
     assert events == []
+
+
+def test_append_creates_directories_and_sets_timestamp(temp_timeline_store):
+    timeline_store.append_event(42, "note", "Created via test")
+
+    events = timeline_store.load_timeline(42)
+    assert len(events) == 1
+    assert events[0].event_type == "note"
+    assert events[0].timestamp.tzinfo is not None

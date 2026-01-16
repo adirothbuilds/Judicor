@@ -9,6 +9,7 @@ def test_save_and_load_attached_incident(temp_session_store):
     attached, updated_at = session
     assert attached == 5
     assert updated_at is not None
+    assert updated_at.tzinfo is not None
 
 
 def test_clear_session(temp_session_store):

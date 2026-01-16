@@ -16,7 +16,8 @@ def save_attached_incident(incident_id: int) -> None:
 
     payload = {
         "attached_incident_id": incident_id,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "last_activity": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),  # backward compat
     }
 
     secure_write_json(SESSION_FILE, payload)
@@ -42,7 +43,10 @@ def load_session() -> Optional[Tuple[int, datetime]]:
         with open(SESSION_FILE, encoding="utf-8") as f:
             raw = json.load(f)
         attached = int(raw["attached_incident_id"])
-        updated_at = parse_dt(raw.get("updated_at"))
+        updated_at = (
+            parse_dt(raw.get("last_activity"))
+            or parse_dt(raw.get("updated_at"))
+        )
         return attached, updated_at
     except Exception:
         return None

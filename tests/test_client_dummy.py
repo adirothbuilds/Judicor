@@ -79,7 +79,10 @@ def test_status_and_detach(
 
 
 def test_resolve_and_trigger(
-    temp_session_store, temp_timeline_store, temp_incident_store
+    temp_session_store,
+    temp_timeline_store,
+    temp_incident_store,
+    temp_history_store,
 ):
     client = DummyJudicorClient(reasoner=_StubReasoner())
     resolve = client.resolve_incident()
@@ -92,3 +95,22 @@ def test_resolve_and_trigger(
     created = client.trigger()
     assert created.success
     assert created.incident_id == 3
+
+
+def test_session_recovery_on_init(
+    temp_session_store,
+    temp_timeline_store,
+    temp_incident_store,
+    temp_history_store,
+):
+    # Prepare an incident and persisted session
+    from judicor.session.store import save_attached_incident
+
+    client = DummyJudicorClient(reasoner=_StubReasoner())
+    incidents = client.list_incidents()
+    target_id = incidents[0].id
+    save_attached_incident(target_id)
+
+    restored = DummyJudicorClient(reasoner=_StubReasoner())
+    assert restored.current_incident is not None
+    assert restored.current_incident.id == target_id
